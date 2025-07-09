@@ -12,8 +12,6 @@ class DatabaseManager:
         """Fecha a conexão com o banco"""
         self.conn.close()
     
-
-    
     def get_listas_pacientes(self):
         """Retorna as listas de pacientes organizadas"""
         pacientes_igor = [
@@ -58,14 +56,14 @@ class DatabaseManager:
     
     def analisar_paciente(self, nome_paciente: str) -> Dict[str, Any]:
         """Analisa os procedimentos de um paciente específico"""
-        # Buscar procedimentos do paciente (sem duplicatas por senha)
+        # Buscar procedimentos do paciente (sem duplicatas por procedimento_codigo)
         query = '''
-            SELECT DISTINCT senha, procedimento_nome, qtde_realizada
+            SELECT DISTINCT procedimento_codigo, procedimento_nome, qtde_realizada
             FROM producao
             WHERE usuario_nome = ?
                 AND qtde_realizada >= 1
-                AND senha IN ('60010142', '60010363')
-            ORDER BY senha
+                AND procedimento_codigo IN ('60010142', '60010363')
+            ORDER BY procedimento_codigo
         '''
         
         self.cursor.execute(query, (nome_paciente,))
@@ -78,21 +76,21 @@ class DatabaseManager:
         valor_total_paciente = 0
         
         for proc in procedimentos:
-            valor_unitario = 800.00 if proc['senha'] == '60010142' else 80.00
+            valor_unitario = 800.00 if proc['procedimento_codigo'] == '60010142' else 80.00
             valor_total_proc = proc['qtde_realizada'] * valor_unitario
             valor_total_paciente += valor_total_proc
             
             procedimentos_encontrados.append({
-                'senha': proc['senha'],
+                'procedimento_codigo': proc['procedimento_codigo'],
                 'nome': proc['procedimento_nome'],
                 'quantidade': proc['qtde_realizada'],
                 'valor_unitario': valor_unitario,
                 'valor_total': valor_total_proc
             })
             
-            if proc['senha'] == '60010142':
+            if proc['procedimento_codigo'] == '60010142':
                 tem_teste = True
-            elif proc['senha'] == '60010363':
+            elif proc['procedimento_codigo'] == '60010363':
                 tem_consulta = True
         
         # Determinar status e procedimentos faltando
@@ -126,7 +124,7 @@ class DatabaseManager:
             SELECT DISTINCT usuario_nome
             FROM producao
             WHERE qtde_realizada >= 1
-                AND senha IN ('60010142', '60010363')
+                AND procedimento_codigo IN ('60010142', '60010363')
             ORDER BY usuario_nome
         '''
         
