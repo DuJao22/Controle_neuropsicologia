@@ -4,10 +4,12 @@ from typing import List, Dict, Any
 class DatabaseManager:
     def __init__(self, db_name: str):
         self.db_name = db_name
-        self.conn = sqlite3.connect(db_name)
+
+    def conectar(self):
+        self.conn = sqlite3.connect(self.db_name)
         self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
-    
+
     def close(self):
         """Fecha a conexão com o banco"""
         self.conn.close()
@@ -15,33 +17,34 @@ class DatabaseManager:
     def get_listas_pacientes(self):
         """Retorna as listas de pacientes organizadas"""
         pacientes_igor = [
-            'Ana lara Alves do Santos',
-            'Miguel Silva nazaré',
-            'Mariana Candido Bocalho',
-            'Djavan Oliveira Matos',
-            'Gabriel Junior da Silva',
-            'Melissa Torres Passos Fraça',
-            'Ryssa Hakielly Souza',
-            'Pedro Herrique campo',
-            'Maria Vitoria Ribeiro de Sousa Anne Rocha Pereira',
+            'ANA LARA ALVES DOS SANTOS',
+            'MIGUEL SILVA NASARE',
+            'MARIANA CANDIDO BICALHO',
+            'DJAVAN OLIVEIRA MATOS',
+            'GABRIEL JUNIO DA SILVA',
+            'MELISSA TORRES PASSOS FRAGA',
+            'RAYSSA HAKIELLY SOUZA AMARAL',
+            'PEDRO HENRIQUE CAMPOS ROCHA',
+            'MARIA VITORIA RIBEIRO DE SOUSA RIQUETTI',
+            'ANNE ROCHA PARREIRAS PASSOS',
             'Isabbelly Perilda Patricia Cristina',
-            'João Luiz Bernardes santos',
-            'Lucas Antonio rodrigues senna',
-            'Bernado Gabriel Laurindo',
-            'Bryan Miguel Rodrigues',
-            'Emanuel Araujo Calazans',
-            'Marcus Vinicius Santana',
-            'Joao Marcos Queiros'
+            'JOAO LUIZ BERNARDES SANTOS PIMENTA',
+            'LUCAS ANTONIO RODRIGUES SENA',
+            'Bernardo Gabriel Laurindo',
+            'BRYAN MIGUEL RODRIGUES BELARMINO',
+            'EMANUEL ARAUJO CALAZANS',
+            'MARCUS VINICIUS SANTANA DE SOUZA',
+            'JOAO MARCOS DUARTE QUEIROZ'
         ]
         
         pacientes_divinopolis = [
             'Murilo Neves Lima Giatti',
-            'Geisvania Teixeira Machado',
+            'GEISIVANIA TEIXEIRA MACHADO',
             'Gustavo Henrique Matos da Silva',
-            'Ederson Lucas de Souza',
+            'EDERSON LUCAS DE SOUSA',
             'Angelica Couto Da Silva De Elias',
             'Sophia De Sousa Cavalcante',
-            'Lais Vitoria Silva Leao',
+            'LAIS VITORIA SILVA LEAOS',
             'Gustavo Sena Moreira Braga',
             'Rafael Henrique Carvalho Campos',
             'Rubens Hilario De Oliveira',
@@ -56,20 +59,31 @@ class DatabaseManager:
     
     def analisar_paciente(self, nome_paciente: str) -> Dict[str, Any]:
         """Analisa os procedimentos de um paciente específico"""
-        # Buscar procedimentos do paciente (sem duplicatas por procedimento_codigo)
-        query = '''
-            SELECT DISTINCT procedimento_codigo, procedimento_nome, qtde_realizada
-            FROM producao
-            WHERE usuario_nome = ?
-                AND qtde_realizada >= 1
-                AND procedimento_codigo IN ('60010142', '60010363')
-            ORDER BY procedimento_codigo
-        '''
-        
-        self.cursor.execute(query, (nome_paciente,))
-        procedimentos = self.cursor.fetchall()
-        
-        # Analisar status do paciente
+        self.conectar()
+        try:
+            query = '''
+                SELECT DISTINCT procedimento_codigo, procedimento_nome, qtde_realizada
+                FROM producao
+                WHERE LOWER(usuario_nome) = LOWER(?)
+                    AND qtde_realizada >= 1
+                    AND procedimento_codigo IN ('60010142', '60010363')
+                ORDER BY procedimento_codigo
+            '''
+            self.cursor.execute(query, (nome_paciente,))
+            procedimentos = self.cursor.fetchall()
+        except Exception as e:
+            print(f"Erro ao consultar paciente {nome_paciente}: {e}")
+            self.close()
+            return {
+                'nome': nome_paciente,
+                'procedimentos': [],
+                'status': "❌ Erro",
+                'faltando': [],
+                'tem_teste': False,
+                'tem_consulta': False,
+                'valor_total': 0
+            }
+
         tem_teste = False
         tem_consulta = False
         procedimentos_encontrados = []
@@ -93,7 +107,6 @@ class DatabaseManager:
             elif proc['procedimento_codigo'] == '60010363':
                 tem_consulta = True
         
-        # Determinar status e procedimentos faltando
         faltando = []
         if not tem_teste:
             faltando.append("60010142 - Teste neuropsicológico")
@@ -106,7 +119,8 @@ class DatabaseManager:
             status = "⚠️ Incompleto"
         else:
             status = "❌ Nenhuma senha"
-        
+
+        self.close()
         return {
             'nome': nome_paciente,
             'procedimentos': procedimentos_encontrados,
@@ -116,10 +130,10 @@ class DatabaseManager:
             'tem_consulta': tem_consulta,
             'valor_total': valor_total_paciente
         }
-    
+
     def get_relatorio_geral(self) -> List[Dict[str, Any]]:
         """Gera relatório geral com todos os pacientes que realizaram procedimentos"""
-        # Buscar todos os pacientes únicos que realizaram os procedimentos
+        self.conectar()
         query = '''
             SELECT DISTINCT usuario_nome
             FROM producao
@@ -127,17 +141,17 @@ class DatabaseManager:
                 AND procedimento_codigo IN ('60010142', '60010363')
             ORDER BY usuario_nome
         '''
-        
         self.cursor.execute(query)
         pacientes = self.cursor.fetchall()
-        
+        self.close()
+
         resultado = []
         for paciente in pacientes:
             analise = self.analisar_paciente(paciente['usuario_nome'])
             resultado.append(analise)
         
         return resultado
-    
+
     def get_relatorio_igor(self) -> List[Dict[str, Any]]:
         """Gera relatório específico dos pacientes do Igor"""
         pacientes_igor, _ = self.get_listas_pacientes()
@@ -148,7 +162,7 @@ class DatabaseManager:
             resultado.append(analise)
         
         return resultado
-    
+
     def get_relatorio_divinopolis(self) -> List[Dict[str, Any]]:
         """Gera relatório específico dos pacientes de Divinópolis"""
         _, pacientes_divinopolis = self.get_listas_pacientes()
@@ -159,7 +173,7 @@ class DatabaseManager:
             resultado.append(analise)
         
         return resultado
-    
+
     def calcular_resumo(self, relatorio: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calcula resumo estatístico de um relatório"""
         total_pacientes = len(relatorio)
